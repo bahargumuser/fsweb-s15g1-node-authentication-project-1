@@ -1,3 +1,6 @@
+const model = require("../users/users-model");
+const bcrypt = require("bcryptjs");
+
 /*
   Kullanıcının sunucuda kayıtlı bir oturumu yoksa
 
@@ -6,8 +9,19 @@
     "message": "Geçemezsiniz!"
   }
 */
-function sinirli() {
-
+function sinirli(req, res, next) {
+  try {
+    if (req.session && req.session.user_id) {
+      next();
+    } else {
+      next({
+        status: 401,
+        message: "Geçemezsiniz!",
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
 }
 
 /*
@@ -18,8 +32,22 @@ function sinirli() {
     "message": "Username kullaniliyor"
   }
 */
-function usernameBostami() {
-
+async function usernameBostami(req, res, next) {
+  //burası kayıt olurken kullanılır. uniq olması gerekir.
+  try {
+    let isExistUser = await userModel.goreBul({ username: req.body.username });
+    if (isExistUser && isExistUser.length) {
+      next({
+        status: 422,
+        message: "Username kullaniliyor",
+      });
+    } else {
+      req.body.password = bcrypt.hashSync(req.body.password);
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
 }
 
 /*
@@ -30,8 +58,21 @@ function usernameBostami() {
     "message": "Geçersiz kriter"
   }
 */
-function usernameVarmi() {
-
+async function usernameVarmi(req, res, next) {
+  try {
+    let isExistUser = await userModel.goreBul({ username: req.body.username });
+    if (!isExistUser || isExistUser.length == 0) {
+      next({
+        status: 401,
+        message: "Geçersiz kriter",
+      });
+    } else {
+      req.ExistUsers = isExistUser[0];
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
 }
 
 /*
@@ -42,8 +83,27 @@ function usernameVarmi() {
     "message": "Şifre 3 karakterden fazla olmalı"
   }
 */
-function sifreGecerlimi() {
-
+async function sifreGecerlimi(req, res, next) {
+  try {
+    let { password } = req.body;
+    if (!password || password.length < 3) {
+      next({
+        status: 422,
+        message: "Şifre 3 karakterden fazla olmalı",
+      });
+    } else {
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
 }
 
 // Diğer modüllerde kullanılabilmesi için fonksiyonları "exports" nesnesine eklemeyi unutmayın.
+
+module.exports = {
+  usernameVarmi,
+  usernameBostami,
+  sifreGecerlimi,
+  sinirli,
+};
